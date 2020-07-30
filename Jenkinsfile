@@ -1,76 +1,49 @@
 pipeline {
-    agent any 
-    tools { 
-        maven 'Maven' 
-      
-    }
-stages { 
-     
- stage('Preparation') { 
-     steps {
-// for display purpose
-
-      // Get some code from a GitHub repository
-
-      git 'https://github.com/raknas999/game-of-life.git'
-
-      // Get the Maven tool.
-     
- // ** NOTE: This 'M3' Maven tool must be configured
- 
-     // **       in the global configuration.   
-     }
+	agent any
+	  tools {
+      git "newgit"
+      maven "Maven"
    }
-
-   stage('Build') {
-       steps {
-       // Run the maven build
-
-      //if (isUnix()) {
-         sh 'mvn -Dmaven.test.failure.ignore=true install'
-      //} 
-      //else {
-      //   bat(/"${mvnHome}\bin\mvn" -Dmaven.test.failure.ignore clean package/)
-       }
-//}
-   }
- 
-  stage('Unit Test Results') {
-      steps {
-      junit '**/target/surefire-reports/TEST-*.xml'
-      
-     }
- }
- stage('Sonarqube') {
-    environment {
-        def scannerHome = tool 'sonarqube';
-    }
-    steps {
-      withSonarQubeEnv('sonarqube') {
-            sh "${scannerHome}/bin/sonar-scanner"
-        }
-        timeout(time: 10, unit: 'MINUTES') {
-          waitForQualityGate abortPipeline: true
-        }
-    }
+	
+stages {
+stage('checkout') {
+	steps {
+	checkout([$class: 'GitSCM', branches: [[name: '*/master']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'git', url: 'https://github.com/sunilvirat/new.git']]])
+	}
+		}
+stage('Build') {
+    steps{
+	sh label: '', script: 'mvn clean package'
+			}
+			
 }
-     stage('Artifact upload') {
+ stage('Build and Push Docker Image') {
       steps {
-       nexusPublisher nexusInstanceId: '1234', nexusRepositoryId: 'releases', packages: [[$class: 'MavenPackage', mavenAssetList: [[classifier: '', extension: '', filePath: 'gameoflife-web/target/gameoflife.war']], mavenCoordinate: [artifactId: 'gameoflife', groupId: 'com.wakaleo.gameoflife', packaging: 'war', version: '$BUILD_NUMBER']]]
-      }
-     }
-    stage('Deploy War') {
-      steps {
-        sh label: '', script: 'ansible-playbook deploy.yml'
+        sh label: '', script: '''docker build -t gameoflife-image:$BUILD_NUMBER .
+                                 docker tag gameoflife-image:$BUILD_NUMBER docker.io/venkatasunil/gameoflife-image:$BUILD_NUMBER
+                                 docker push docker.io/venkatasunil/gameoflife-image:$BUILD_NUMBER'''
       }
  }
-}
-post {
-       success {
-            archiveArtifacts 'gameoflife-web/target/*.war'
+      stage('Update Image Version') {
+
+      steps {
+          
+        sh label: '', script: '''sed -i s/latest/$BUILD_NUMBER/ dockerdeploy-script'''
+      }
+ }
+ stage('copy dockerdeploy-script file') {
+            steps {
+             sh label: '', script: '''scp dockerdeploy-script dockerswarm@172.31.33.211:/home/dockerswarm/'''
+                                  
         }
-       failure {
-           mail to:"raknas000@gmail.com", subject:"FAILURE: ${currentBuild.fullDisplayName}", body: "Build failed"
-        }
-    }       
+     }
+stage('apply dockerdeploy-script file'){
+agent {
+                        label "docker"
+                    }
+steps{
+  sh label: '', script: 'sh /home/dockerswarm/dockerdeploy-script'
+  }
+  }
+ }
 }
