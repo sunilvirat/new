@@ -1,2 +1,2 @@
 
-sudo docker service create --name taskdeployment venkatasunil/gameoflife-image:$BUILD_NUMBER
+sudo docker service create --name taskdeployment -p 8080:8080 venkatasunil/gameoflife-image:$BUILD_NUMBER
