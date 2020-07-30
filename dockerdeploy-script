@@ -1,2 +1,2 @@
-sudo docker push gameoflife-image:$BUILD_NUMBER
+
 sudo docker service create --name taskdeployment gameoflife-image:$BUILD_NUMBER
