@@ -1,7 +1,7 @@
 pipeline {
 	agent any
 	  tools {
-      git "newgit"
+      // Install the Maven version configured as "M3" and add it to the path.
       maven "Maven"
    }
 	
@@ -24,20 +24,20 @@ stage('Build') {
                                  docker push docker.io/venkatasunil/gameoflife-image:$BUILD_NUMBER'''
       }
  }
-      stage('Update Image Version') {
+  stage('Update Image Version') {
 
       steps {
           
         sh label: '', script: '''sed -i s/latest/$BUILD_NUMBER/ dockerdeploy-script'''
       }
  }
- stage('copy dockerdeploy-script file') {
+ stage('Apply Kubernetes files') {
             steps {
              sh label: '', script: '''scp dockerdeploy-script dockerswarm@172.31.33.211:/home/dockerswarm/'''
                                   
         }
      }
-stage('apply dockerdeploy-script file'){
+stage('apply docker file'){
 agent {
                         label "docker"
                     }
@@ -46,4 +46,12 @@ steps{
   }
   }
  }
+  post {
+        always {
+            sh label: '', script: '''sudo docker rmi gameoflife-image:$BUILD_NUMBER
+sudo docker rmi venkatasunil/gameoflife-image:$BUILD_NUMBER
+'''
+                    }
+ }
+    
 }
