@@ -495,9 +495,4 @@
             </reporting>
         </profile>
     </profiles>
-    <distributionManagement>
-	
-    
-
-  </distributionManagement>
 </project>
